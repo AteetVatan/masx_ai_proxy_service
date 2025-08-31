@@ -54,12 +54,12 @@ class Settings(BaseSettings):
     log_format: str = Field(default="json", description="Log format")
     
     # Rate limiting
-    max_refresh_requests_per_minute: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum refresh requests per minute"
-    )   
+    # max_refresh_requests_per_minute: int = Field(
+    #     default=10,
+    #     ge=1,
+    #     le=100,
+    #     description="Maximum refresh requests per minute"
+    # )   
 
 
 
