@@ -26,6 +26,8 @@ import asyncio
 from typing import Dict, Any, Optional
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from app.config import get_settings
 from app.logging_config import get_service_logger
@@ -133,22 +135,34 @@ class ProxyManager:
     @classmethod
     def __get_proxies(cls):
         """
-        Get a list of proxies from a proxy site).
-        """ 
-       
-        import requests
-        #import json
+        Get a list of proxies from Didsoft or another proxy source.
 
-        # URL of the raw JSON file from proxifly using jsDelivr CDN
+        Returns:
+            list[str]: List of proxy addresses in "ip:port" format.
+        """
         url = cls.__didsoft_proxy_url
-        try:           
-            response = requests.get(url)
-            response.raise_for_status()  # Raise an error for bad status codes
-            proxy_text = response.text
-            proxies = proxy_text.split("\n")
+        proxies: list[str] = []
+
+        # Configure retry session
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=(429, 500, 502, 503, 504))
+        session.mount("http://", HTTPAdapter(max_retries=retries))
+
+        try:
+            cls.__logger.info(f"Fetching proxy list from: {url}")
+            response = session.get(url, timeout=20)
+            response.raise_for_status()
+
+            if not response.text.strip():
+                cls.__logger.warning("Proxy list response is empty.")
+                return []
+
+            proxies = [line.strip() for line in response.text.splitlines() if line.strip()]
+            cls.__logger.info(f"Retrieved {len(proxies)} proxies from Didsoft.")
             return proxies
-        except requests.exceptions.RequestException as e:
-            print(f"Error downloading proxies: {e}")
+
+        except requests.RequestException as e:
+            cls.__logger.error(f"Error downloading proxies: {e}")
             return []
         
         
