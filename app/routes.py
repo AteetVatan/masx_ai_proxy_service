@@ -64,6 +64,33 @@ async def get_proxies():
         )
 
 
+
+@router.get("/proxies", response_model=ProxyResponse)
+async def get_proxies_old():
+    """
+    Get all available valid proxies.
+    
+    Returns:
+        List of working proxy strings in format "ip:port"
+    """
+    try:
+        logger.info("GET /proxies endpoint called")
+        proxies = await ProxyManager.proxies_async()
+        
+        return ProxyResponse(
+            success=True,
+            data=proxies,
+            message=f"Retrieved {len(proxies)} valid proxies"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in get_proxies: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve proxies: {str(e)}"
+        )
+
+
 @router.get("/proxy/random", response_model=ProxyResponse)
 async def get_random_proxy():
     """

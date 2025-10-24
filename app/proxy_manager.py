@@ -39,8 +39,9 @@ class ProxyManager:
     Handles all proxy-related operations in the MASX AI News ETL pipeline.
     """
 
-    __proxies = []
+    _proxies = []
     __settings = get_settings()
+    __didsoft_proxy_url = __settings.didsoft_proxy_url    
     __proxy_webpage = __settings.proxy_webpage
     __proxy_testing_url = __settings.proxy_testing_url
     __headers_list = headers_list
@@ -66,24 +67,24 @@ class ProxyManager:
         """
         Get available proxies asynchronously.
         """ 
-        async with cls.__lock:  # wait if refresh is running        
+        #async with cls.__lock:  # wait if refresh is running        
             
-            if cls.__proxies:
-                if cls.__proxy_timestamp + cls.__proxy_expiration < datetime.now():
-                    cls.__proxies = []
-            
-            if not cls.__proxies:
-                # get all proxies
-                cls.__logger.info("proxy_manager.py:Getting proxies from proxy site...")
-                all_proxies = cls.__get_proxies()
-                # test proxies
-                cls.__logger.info("proxy_manager.py:Testing proxies...")
-                proxies = list(set(await cls.__test_proxy(all_proxies)))
-                cls.__proxies = proxies
-                cls.__logger.info(f"proxy_manager.py:Found {len(cls.__proxies)} proxies")
-                cls.__proxy_timestamp = datetime.now()
+        if cls._proxies:
+            if cls.__proxy_timestamp + cls.__proxy_expiration < datetime.now():
+                cls._proxies = []
+        
+        if not cls._proxies:
+            # get all proxies
+            cls.__logger.info("proxy_manager.py:Getting proxies from proxy site...")
+            all_proxies = cls.__get_proxies()
+            # test proxies
+            cls.__logger.info("proxy_manager.py:Testing proxies...")
+            #proxies = list(set(await cls.__test_proxy(all_proxies)))
+            cls._proxies = all_proxies
+            cls.__logger.info(f"proxy_manager.py:Found {len(cls._proxies)} proxies")
+            cls.__proxy_timestamp = datetime.now()
 
-            return cls.__proxies
+        return cls._proxies
     
     @classmethod
     async def refresh_proxies(cls):
@@ -91,15 +92,15 @@ class ProxyManager:
         Get available proxies asynchronously.
         """       
         # get all proxies
-        async with cls.__lock:
-            cls.__logger.info("proxy_manager.py:Getting proxies from proxy site...")
-            all_proxies = cls.__get_proxies()
-            # test proxies
-            cls.__logger.info("proxy_manager.py:Testing proxies...")
-            proxies = list(set(await cls.__test_proxy(all_proxies)))
-            cls.__proxies = proxies
-            cls.__logger.info(f"proxy_manager.py:Found {len(cls.__proxies)} proxies")
-            cls.__proxy_timestamp = datetime.now()            
+        #async with cls.__lock:
+        cls.__logger.info("proxy_manager.py:Getting proxies from proxy site...")
+        all_proxies = cls.__get_proxies()
+        # test proxies
+        cls.__logger.info("proxy_manager.py:Testing proxies...")
+        #proxies = list(set(await cls.__test_proxy(all_proxies)))
+        cls._proxies = all_proxies
+        cls.__logger.info(f"proxy_manager.py:Found {len(cls._proxies)} proxies")
+        cls.__proxy_timestamp = datetime.now()            
             
 
     @classmethod
@@ -131,6 +132,28 @@ class ProxyManager:
 
     @classmethod
     def __get_proxies(cls):
+        """
+        Get a list of proxies from a proxy site).
+        """ 
+       
+        import requests
+        #import json
+
+        # URL of the raw JSON file from proxifly using jsDelivr CDN
+        url = cls.__didsoft_proxy_url
+        try:           
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an error for bad status codes
+            proxy_text = response.text
+            proxies = proxy_text.split("\n")
+            return proxies
+        except requests.exceptions.RequestException as e:
+            print(f"Error downloading proxies: {e}")
+            return []
+        
+        
+    @classmethod
+    def __get_proxies_old(cls):
         """
         Get a list of proxies from a proxy site).
         """
@@ -232,9 +255,9 @@ class ProxyManager:
         Get a random valid proxy synchronously.
         Returns None if no proxies available.
         """
-        if not cls.__proxies:
+        if not cls._proxies:
             return None
-        return random.choice(cls.__proxies)
+        return random.choice(cls._proxies)
     
     @classmethod
     def _get_next_refresh_time(cls) -> str:
@@ -250,7 +273,7 @@ class ProxyManager:
     def get_stats(cls) -> Dict[str, Any]:
         """Get proxy manager statistics."""
         return {
-            "proxy_count": len(cls.__proxies),
+            "proxy_count": len(cls._proxies),
             "last_refresh": cls.__proxy_timestamp.isoformat() if cls.__proxy_timestamp else None,
             "next_refresh": cls._get_next_refresh_time(),
             "refresh_count": cls.__refresh_count

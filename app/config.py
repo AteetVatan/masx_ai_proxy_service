@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     )
 
     # Proxy configuration
+    didsoft_proxy_url: str = Field(
+        default="https://api.didsoft.com/v1/proxy-list",
+        description="URL to get proxies from"
+    )
     proxy_webpage: str = Field(
         default="https://free-proxy-list.net/",
         description="URL to scrape proxies from"
